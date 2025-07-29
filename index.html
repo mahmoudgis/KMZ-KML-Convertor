@@ -4,17 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>عارض ومحول KML/KMZ إلى GeoJSON</title>
-    
+   
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
+   
     <!-- Leaflet CSS & JS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-    
+   
     <!-- JSZip for handling .kmz files -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    
+   
     <!-- SheetJS (XLSX) library for Excel export -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
@@ -91,7 +91,7 @@
 
         <!-- Main Content Area -->
         <div class="bg-white p-6 rounded-lg shadow-lg">
-            
+           
             <!-- Upload and Control Section -->
             <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6 border-b pb-6">
                 <div class="flex-grow">
@@ -108,6 +108,12 @@
                         تنزيل GeoJSON
                     </button>
                 </div>
+            </div>
+           
+            <!-- Layer Selector -->
+            <div id="layer-selector-container" class="hidden mb-6">
+                <label for="layer-selector" class="block mb-2 text-sm font-medium text-gray-700">اختر الطبقة للعرض والتصدير</label>
+                <select id="layer-selector" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"></select>
             </div>
 
             <!-- Status/Loader Section -->
@@ -163,7 +169,7 @@
                 </span>
                 <span class="hidden sm:inline text-gray-400">&bull;</span>
                 <a href="https://wa.me/966561318400" target="_blank" rel="noopener noreferrer" class="flex items-center gap-1 hover:text-green-600 transition-colors">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.894 11.892-1.99 0-3.903-.52-5.58-1.452L.057 24zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.886-.001 2.267.655 4.398 1.803 6.122l-1.24 4.525 4.647-1.234zM9.05 8.076C9.33 8.162 10.333 8.686 10.495 8.835c.163.149.292.346.325.525.033.179.033.347 0 .525-.033.179-.066.347-.099.412-.033.065-.066.13-.132.195-.066.065-.132.13-.231.23-.099.099-.198.198-.33.33-.132.132-.264.264-.396.396-.132.132-.264.264-.363.363-.099.099-.198.163-.264.231-.066.065-.132.13-.165.195-.033.065-.033.13-.033.162.001.033.001.066.001.099 0 .033 0 .066.001.099.001.033.001.033.001.066.001.033.001.066.001.099.001.033.001.066.001.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.03-1.066.033-.162.033-.33.033-.525s-.033-.347-.033-.525c.033-.179.162-.376.325-.525.162-.149 1.165-.673 1.445-.759.28-.086.525-.13.735-.13.21 0 .42.044.592.13.172.086.312.203.42.349.108.146.183.325.225.538.042.213.042.426.042.639s-.042.426-.042.639c-.042.213-.117.392-.225.538-.108.146-.248.263-.42.349-.172.086-.382.13-.592.13-.21 0-.455-.044-.735-.13-.28-.086-1.282-.61-1.445-.759-.162-.149-.291-.346-.325-.525zm3.525.033c.099.495.525.885 1.02 1.05.495.165.99.132 1.419-.099.429-.231.726-.592.858-1.05.132-.458.099-.957-.099-1.419-.231-.429-.592-.726-1.05-.858-.458-.132-.957-.099-1.419.099-.429.231-.726.592-.858 1.05-.132.458-.099.957.099 1.419z" /></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.894 11.892-1.99 0-3.903-.52-5.58-1.452L.057 24zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.886-.001 2.267.655 4.398 1.803 6.122l-1.24 4.525 4.647-1.234zM9.05 8.076C9.33 8.162 10.333 8.686 10.495 8.835c.163.149.292.346.325.525.033.179.033.347 0 .525-.033.179-.066.347-.099.412-.033.065-.066.13-.132.195-.066.065-.132.13-.231.23-.099.099-.198.198-.33.33-.132.132-.264.264-.396.396-.132.132-.264.264-.363.363-.099.099-.198.163-.264.231-.066.065-.132.13-.165.195-.033.065-.033.13-.033.162.001.033.001.066.001.099 0 .033 0 .066.001.099.001.033.001.033.001.066.001.033.001.066.001.099.001.033.001.066.001.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.03-1.066.033-.162.033-.33.033-.525s-.033-.347-.033-.525c.033-.179.162-.376.325-.525.162-.149 1.165-.673 1.445-.759.28-.086.525-.13.735-.13.21 0 .42.044.592.13.172.086.312.203.42.349.108.146.183.325.225.538.042.213.042.426.042.639s-.042.426-.042.639c-.042.213-.117.392-.225.538-.108.146-.248.263-.42.349-.172.086-.382.13-.592.13-.21 0-.455-.044-.735-.13-.28-.086-1.282-.61-1.445-.759-.162-.149-.291-.346-.325-.525zm3.525.033c.099.495.525.885 1.02 1.05.495.165.99.132 1.419-.099.429-.231.726-.592.858-1.05.132-.458.099-.957-.099-1.419-.231-.429-.592-.726-1.05-.858-.458-.132-.957-.099-1.419.099-.429.231-.726.592-.858 1.05-.132.458-.099.957.099 1.419z" /></svg>
                     <span>تواصل عبر واتساب</span>
                 </a>
             </div>
@@ -174,8 +180,9 @@
         // --- Global Variables ---
         let map;
         let geoJSONLayer;
-        let processedGeoJSON = null;
-        const domParser = new DOMParser(); // Use main thread's parser
+        let processedDataByLayer = {};
+        let currentGeoJSON = null;
+        const domParser = new DOMParser();
 
         // --- DOM Elements ---
         const fileInput = document.getElementById('file-input');
@@ -187,7 +194,9 @@
         const statusMessage = document.getElementById('status-message');
         const tableHead = document.getElementById('table-head');
         const tableBody = document.getElementById('table-body');
-        
+        const layerSelectorContainer = document.getElementById('layer-selector-container');
+        const layerSelector = document.getElementById('layer-selector');
+       
         // --- Initialization ---
         function initializeMap() {
             if (map) map.remove();
@@ -203,9 +212,10 @@
         fileInput.addEventListener('change', handleFileSelect);
         downloadGeoJSONBtn.addEventListener('click', downloadGeoJSON);
         downloadXLSXBtn.addEventListener('click', downloadXLSX);
+        layerSelector.addEventListener('change', handleLayerChange);
 
-        // --- Parsing Functions (executed on main thread) ---
-        
+        // --- Parsing Functions ---
+       
         async function readKmz(file) {
             const jszip = new JSZip();
             const zip = await jszip.loadAsync(file);
@@ -255,7 +265,7 @@
             }
             return null;
         }
-        
+       
         function parsePlacemark(placemark) {
             const properties = {};
             const extendedData = placemark.querySelector('ExtendedData');
@@ -284,36 +294,49 @@
             return { type: 'Feature', properties, geometry };
         }
 
-        // --- Chunk Processing for Performance ---
+        function parseKmlByLayers(kmlDom) {
+            const data = {};
+            let allFeatures = [];
 
-        function processPlacemarksInChunks(placemarks, index = 0, features = []) {
-            const chunkSize = 100; // Process 100 placemarks at a time
-            const endIndex = Math.min(index + chunkSize, placemarks.length);
-
-            for (let i = index; i < endIndex; i++) {
-                const feature = parsePlacemark(placemarks[i]);
-                if (feature) {
-                    features.push(feature);
+            // Find all folders
+            const folders = kmlDom.getElementsByTagNameNS('*', 'Folder');
+            Array.from(folders).forEach((folder, i) => {
+                const folderNameElement = Array.from(folder.childNodes).find(node => node.nodeName === 'name');
+                const folderName = folderNameElement ? folderNameElement.textContent.trim() : `طبقة ${i + 1}`;
+               
+                const placemarks = folder.getElementsByTagNameNS('*', 'Placemark');
+                const features = Array.from(placemarks).map(parsePlacemark).filter(Boolean);
+               
+                if (features.length > 0) {
+                    data[folderName] = { type: 'FeatureCollection', features };
+                    allFeatures = allFeatures.concat(features);
                 }
+            });
+
+            // Find placemarks not in any folder (at the root of a Document)
+            const rootPlacemarks = kmlDom.querySelectorAll('Document > Placemark');
+            if (rootPlacemarks.length > 0) {
+                 const rootFeatures = Array.from(rootPlacemarks).map(parsePlacemark).filter(Boolean);
+                 if(rootFeatures.length > 0) {
+                    data['طبقة رئيسية'] = { type: 'FeatureCollection', features: rootFeatures };
+                    allFeatures = allFeatures.concat(rootFeatures);
+                 }
             }
 
-            showLoader(true, `جاري تحليل المعالم... (${endIndex}/${placemarks.length})`);
-
-            if (endIndex < placemarks.length) {
-                setTimeout(() => processPlacemarksInChunks(placemarks, endIndex, features), 0);
-            } else {
-                processedGeoJSON = { type: 'FeatureCollection', features: features };
-                if (processedGeoJSON && processedGeoJSON.features.length > 0) {
-                    welcomeMessage.classList.add('hidden');
-                    dataDisplay.classList.remove('hidden');
-                    displayData(processedGeoJSON);
-                    downloadGeoJSONBtn.disabled = false;
-                    downloadXLSXBtn.disabled = false;
-                } else {
-                    showError('لم يتم العثور على معالم جغرافية (Placemarks) قابلة للعرض في الملف.');
-                }
-                showLoader(false);
+            if (Object.keys(data).length > 1) {
+                data['__all__'] = { type: 'FeatureCollection', features: allFeatures };
             }
+           
+            // If no folders were found at all, treat all placemarks as one layer
+            if (Object.keys(data).length === 0) {
+                 const allPlacemarks = kmlDom.getElementsByTagNameNS('*', 'Placemark');
+                 const features = Array.from(allPlacemarks).map(parsePlacemark).filter(Boolean);
+                 if (features.length > 0) {
+                    data['كل المعالم'] = { type: 'FeatureCollection', features };
+                 }
+            }
+
+            return data;
         }
 
         // --- Core Functions ---
@@ -333,46 +356,75 @@
                 } else {
                     kmlText = await file.text();
                 }
-                
+               
                 showLoader(true, 'جاري تحليل بيانات KML...');
-                
-                // Use a promise to handle the async-like nature of setTimeout
+               
                 await new Promise(resolve => setTimeout(resolve, 50));
 
-                // FIX: Pre-process the KML text to remove the problematic schemaLocation attribute
                 const cleanedKmlText = kmlText.replace(/xsi:schemaLocation="[^"]*"/g, '');
-
                 const kmlDom = domParser.parseFromString(cleanedKmlText, 'text/xml');
-                
+               
                 const parserErrors = kmlDom.getElementsByTagName('parsererror');
                 if (parserErrors.length > 0) {
-                    const errorText = parserErrors[0].textContent;
-                    console.error("KML Parsing Error Details:", errorText);
-                    // This error is often non-fatal, so we will not throw an error here anymore.
-                    // We will proceed and try to find placemarks anyway.
+                    console.error("KML Parsing Error Details:", parserErrors[0].textContent);
                     console.warn("Parser error detected, but attempting to continue parsing.");
                 }
 
-                const placemarks = kmlDom.getElementsByTagNameNS('*', 'Placemark');
+                processedDataByLayer = parseKmlByLayers(kmlDom);
 
-                if (placemarks.length === 0) {
-                     showError('لم يتم العثور على معالم جغرافية (Placemarks) قابلة للعرض في الملف.');
-                     showLoader(false);
-                     return;
+                if (Object.keys(processedDataByLayer).length > 0) {
+                    populateLayerSelector();
+                    handleLayerChange(); // Display the default selected layer
+                    downloadGeoJSONBtn.disabled = false;
+                    downloadXLSXBtn.disabled = false;
+                } else {
+                    showError('لم يتم العثور على أي طبقات أو معالم جغرافية قابلة للعرض في الملف.');
                 }
-                
-                processPlacemarksInChunks(Array.from(placemarks));
+                showLoader(false);
 
             } catch (error) {
                 console.error("Error processing file:", error);
-                const message = error.message.includes('فشل تحليل ملف KML') 
-                    ? error.message 
-                    : `حدث خطأ أثناء معالجة الملف: ${error.message}`;
-                showError(message);
+                showError(`حدث خطأ أثناء معالجة الملف: ${error.message}`);
                 showLoader(false);
             }
         }
-        
+       
+        function populateLayerSelector() {
+            layerSelector.innerHTML = ''; // Clear previous options
+           
+            if (processedDataByLayer['__all__']) {
+                const option = document.createElement('option');
+                option.value = '__all__';
+                option.textContent = 'كل الطبقات';
+                layerSelector.appendChild(option);
+            }
+
+            for (const layerName in processedDataByLayer) {
+                if (layerName !== '__all__') {
+                    const option = document.createElement('option');
+                    option.value = layerName;
+                    option.textContent = layerName;
+                    layerSelector.appendChild(option);
+                }
+            }
+           
+            layerSelectorContainer.classList.remove('hidden');
+        }
+       
+        function handleLayerChange() {
+            const selectedLayerName = layerSelector.value;
+            currentGeoJSON = processedDataByLayer[selectedLayerName];
+
+            if (currentGeoJSON) {
+                welcomeMessage.classList.add('hidden');
+                dataDisplay.classList.remove('hidden');
+                displayData(currentGeoJSON);
+            } else {
+                dataDisplay.classList.add('hidden');
+                welcomeMessage.classList.remove('hidden');
+            }
+        }
+       
         function displayData(geojson) {
             displayTable(geojson.features);
             displayMap(geojson);
@@ -381,7 +433,7 @@
         function displayTable(features) {
             tableHead.innerHTML = '';
             tableBody.innerHTML = '';
-            if (features.length === 0) return;
+            if (!features || features.length === 0) return;
             const headers = new Set();
             features.forEach(feature => Object.keys(feature.properties).forEach(key => headers.add(key)));
             const headerList = Array.from(headers);
@@ -408,6 +460,8 @@
 
         function displayMap(geojson) {
             if (geoJSONLayer) map.removeLayer(geoJSONLayer);
+            if (!geojson || !geojson.features || geojson.features.length === 0) return;
+           
             geoJSONLayer = L.geoJSON(geojson, {
                 onEachFeature: (feature, layer) => {
                     let popupContent = '<div class="overflow-auto max-h-48"><table class="w-full"><tbody>';
@@ -420,6 +474,7 @@
                 style: () => ({ color: "#3388ff", weight: 3, opacity: 0.8 }),
                 pointToLayer: (feature, latlng) => L.circleMarker(latlng, { radius: 6, fillColor: "#ff7800", color: "#000", weight: 1, opacity: 1, fillOpacity: 0.8 })
             }).addTo(map);
+           
             if (geojson.features.length > 0) {
                 setTimeout(() => {
                     map.invalidateSize();
@@ -429,23 +484,27 @@
         }
 
         function downloadGeoJSON() {
-            if (!processedGeoJSON) return;
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(processedGeoJSON, null, 2));
+            if (!currentGeoJSON) return;
+            const layerName = layerSelector.options[layerSelector.selectedIndex].text;
+            const filename = `converted_${layerName.replace(/\s/g, '_')}.geojson`;
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(currentGeoJSON, null, 2));
             const downloadAnchorNode = document.createElement('a');
             downloadAnchorNode.setAttribute("href", dataStr);
-            downloadAnchorNode.setAttribute("download", "converted_data.geojson");
+            downloadAnchorNode.setAttribute("download", filename);
             document.body.appendChild(downloadAnchorNode);
             downloadAnchorNode.click();
             downloadAnchorNode.remove();
         }
 
         function downloadXLSX() {
-            if (!processedGeoJSON || !processedGeoJSON.features || processedGeoJSON.features.length === 0) return;
-            const dataForSheet = processedGeoJSON.features.map(feature => feature.properties);
+            if (!currentGeoJSON || !currentGeoJSON.features || currentGeoJSON.features.length === 0) return;
+            const layerName = layerSelector.options[layerSelector.selectedIndex].text;
+            const filename = `converted_${layerName.replace(/\s/g, '_')}.xlsx`;
+            const dataForSheet = currentGeoJSON.features.map(feature => feature.properties);
             const worksheet = XLSX.utils.json_to_sheet(dataForSheet);
             const workbook = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(workbook, worksheet, "بيانات KML");
-            XLSX.writeFile(workbook, "converted_data.xlsx");
+            XLSX.utils.book_append_sheet(workbook, worksheet, layerName);
+            XLSX.writeFile(workbook, filename);
         }
 
         // --- UI Helper Functions ---
@@ -453,11 +512,13 @@
             downloadGeoJSONBtn.disabled = true;
             downloadXLSXBtn.disabled = true;
             dataDisplay.classList.add('hidden');
+            layerSelectorContainer.classList.add('hidden');
             welcomeMessage.classList.remove('hidden');
             tableHead.innerHTML = '';
             tableBody.innerHTML = '';
             if (geoJSONLayer) map.removeLayer(geoJSONLayer);
-            processedGeoJSON = null;
+            processedDataByLayer = {};
+            currentGeoJSON = null;
         }
 
         function showLoader(show, message = '') {
