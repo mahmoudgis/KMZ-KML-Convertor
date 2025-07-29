@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>عارض ومحول KML/KMZ إلى GeoJSON</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Leaflet CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    
+    <!-- JSZip for handling .kmz files -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    
+    <!-- SheetJS (XLSX) library for Excel export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <style>
+        /* Custom styles for the application */
+        body {
+            font-family: 'Inter', 'Tajawal', sans-serif;
+            background-color: #f0f4f8;
+        }
+        #map {
+            height: 100%;
+            min-height: 400px;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+        .leaflet-popup-content-wrapper {
+            border-radius: 0.5rem;
+        }
+        .leaflet-popup-content {
+            font-size: 14px;
+        }
+        .leaflet-popup-content th, .leaflet-popup-content td {
+            padding: 4px 8px;
+            text-align: right;
+        }
+        .table-container {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        /* Custom scrollbar for better look */
+        .table-container::-webkit-scrollbar {
+            width: 8px;
+        }
+        .table-container::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        .table-container::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+        .table-container::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        .loader {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #3498db;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* Style for Leaflet controls */
+        .leaflet-control-layers-toggle {
+            background-image: url(https://unpkg.com/leaflet@1.9.4/dist/images/layers.png);
+        }
+        .leaflet-retina .leaflet-control-layers-toggle {
+            background-image: url(https://unpkg.com/leaflet@1.9.4/dist/images/layers-2x.png);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <div class="container mx-auto p-4 md:p-8">
+        <!-- Header Section -->
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-700">أداة عرض وتحويل ملفات KML/KMZ</h1>
+            <p class="text-lg text-gray-500 mt-2">استعرض بياناتك المكانية وحافظ على أسماء الحقول كاملة عند تحويلها إلى GeoJSON و Excel</p>
+        </header>
+
+        <!-- Main Content Area -->
+        <div class="bg-white p-6 rounded-lg shadow-lg">
+            
+            <!-- Upload and Control Section -->
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6 border-b pb-6">
+                <div class="flex-grow">
+                    <label for="file-input" class="block mb-2 text-sm font-medium text-gray-700">اختر ملف KML أو KMZ</label>
+                    <input id="file-input" type="file" accept=".kml,.kmz" class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 focus:outline-none file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                </div>
+                <div class="flex-shrink-0 mt-4 md:mt-0 flex flex-col sm:flex-row gap-3">
+                     <button id="download-xlsx-btn" disabled class="w-full sm:w-auto bg-blue-600 text-white font-bold py-2 px-6 rounded-lg shadow-md hover:bg-blue-700 transition-colors duration-300 disabled:bg-gray-400 disabled:cursor-not-allowed">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block ml-2" viewBox="0 0 20 20" fill="currentColor"><path d="M2 6a2 2 0 012-2h12a2 2 0 012 2v2a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM2 12a2 2 0 012-2h12a2 2 0 012 2v2a2 2 0 01-2 2H4a2 2 0 01-2-2v-2z" /></svg>
+                        تنزيل Excel (XLSX)
+                    </button>
+                     <button id="download-geojson-btn" disabled class="w-full sm:w-auto bg-green-600 text-white font-bold py-2 px-6 rounded-lg shadow-md hover:bg-green-700 transition-colors duration-300 disabled:bg-gray-400 disabled:cursor-not-allowed">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block ml-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+                        تنزيل GeoJSON
+                    </button>
+                </div>
+            </div>
+
+            <!-- Status/Loader Section -->
+            <div id="status-container" class="text-center my-8 hidden">
+                <div class="loader inline-block"></div>
+                <p id="status-message" class="text-gray-600 mt-4 font-semibold">جاري معالجة الملف...</p>
+            </div>
+
+            <!-- Data Display Section -->
+            <div id="data-display" class="hidden grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <!-- Table Section -->
+                <div id="table-section">
+                    <h2 class="text-xl font-bold mb-4 text-gray-700">البيانات المستخرجة</h2>
+                    <div id="table-container" class="table-container border rounded-lg bg-white">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead id="table-head" class="bg-gray-50">
+                                <!-- Headers will be dynamically inserted here -->
+                            </thead>
+                            <tbody id="table-body" class="bg-white divide-y divide-gray-200">
+                                <!-- Rows will be dynamically inserted here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Map Section -->
+                <div id="map-section">
+                    <h2 class="text-xl font-bold mb-4 text-gray-700">الخريطة التفاعلية</h2>
+                    <div id="map"></div>
+                </div>
+            </div>
+             <div id="welcome-message" class="text-center py-16 px-6 bg-gray-50 rounded-lg">
+                <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-16 w-16 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+                </svg>
+                <h3 class="mt-4 text-xl font-semibold text-gray-700">جاهز للبدء</h3>
+                <p class="mt-2 text-gray-500">يرجى تحديد ملف KML أو KMZ لبدء عرض البيانات وتحويلها.</p>
+            </div>
+        </div>
+
+        <!-- Footer Section -->
+        <footer class="text-center py-6 mt-8">
+            <p class="text-sm text-gray-700 font-semibold">تصميم وتطوير: محمود عبد الرحمن</p>
+            <div class="flex justify-center items-center flex-wrap gap-x-4 gap-y-2 mt-2 text-sm text-gray-600">
+                <a href="mailto:mahmouda18@gmail.com" class="flex items-center gap-1 hover:text-blue-600 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" /><path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" /></svg>
+                    <span>mahmouda18@gmail.com</span>
+                </a>
+                <span class="hidden sm:inline text-gray-400">&bull;</span>
+                <span class="flex items-center gap-1">
+                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.518.759a11.03 11.03 0 004.28 4.28l.759-1.518a1 1 0 011.06-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" /></svg>
+                     <span>00966561318400</span>
+                </span>
+                <span class="hidden sm:inline text-gray-400">&bull;</span>
+                <a href="https://wa.me/966561318400" target="_blank" rel="noopener noreferrer" class="flex items-center gap-1 hover:text-green-600 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.894 11.892-1.99 0-3.903-.52-5.58-1.452L.057 24zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.886-.001 2.267.655 4.398 1.803 6.122l-1.24 4.525 4.647-1.234zM9.05 8.076C9.33 8.162 10.333 8.686 10.495 8.835c.163.149.292.346.325.525.033.179.033.347 0 .525-.033.179-.066.347-.099.412-.033.065-.066.13-.132.195-.066.065-.132.13-.231.23-.099.099-.198.198-.33.33-.132.132-.264.264-.396.396-.132.132-.264.264-.363.363-.099.099-.198.163-.264.231-.066.065-.132.13-.165.195-.033.065-.033.13-.033.162.001.033.001.066.001.099 0 .033 0 .066.001.099.001.033.001.033.001.066.001.033.001.066.001.099.001.033.001.066.001.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.033.033.066.066.099.099.03-1.066.033-.162.033-.33.033-.525s-.033-.347-.033-.525c.033-.179.162-.376.325-.525.162-.149 1.165-.673 1.445-.759.28-.086.525-.13.735-.13.21 0 .42.044.592.13.172.086.312.203.42.349.108.146.183.325.225.538.042.213.042.426.042.639s-.042.426-.042.639c-.042.213-.117.392-.225.538-.108.146-.248.263-.42.349-.172.086-.382.13-.592.13-.21 0-.455-.044-.735-.13-.28-.086-1.282-.61-1.445-.759-.162-.149-.291-.346-.325-.525zm3.525.033c.099.495.525.885 1.02 1.05.495.165.99.132 1.419-.099.429-.231.726-.592.858-1.05.132-.458.099-.957-.099-1.419-.231-.429-.592-.726-1.05-.858-.458-.132-.957-.099-1.419.099-.429.231-.726.592-.858 1.05-.132.458-.099.957.099 1.419z" /></svg>
+                    <span>تواصل عبر واتساب</span>
+                </a>
+            </div>
+        </footer>
+    </div>
+
+    <script type="module">
+        // --- Global Variables ---
+        let map;
+        let geoJSONLayer;
+        let processedGeoJSON = null;
+        const domParser = new DOMParser();
+
+        // --- DOM Elements ---
+        const fileInput = document.getElementById('file-input');
+        const downloadGeoJSONBtn = document.getElementById('download-geojson-btn');
+        const downloadXLSXBtn = document.getElementById('download-xlsx-btn');
+        const dataDisplay = document.getElementById('data-display');
+        const welcomeMessage = document.getElementById('welcome-message');
+        const statusContainer = document.getElementById('status-container');
+        const statusMessage = document.getElementById('status-message');
+        const tableHead = document.getElementById('table-head');
+        const tableBody = document.getElementById('table-body');
+
+        // --- Initialization ---
+        function initializeMap() {
+            if (map) map.remove();
+
+            // Define Basemap Layers
+            const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            });
+
+            const satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+	            attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+            });
+
+            const dark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+	            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+	            subdomains: 'abcd',
+	            maxZoom: 20
+            });
+
+            const baseLayers = {
+                "شوارع": osm,
+                "صور فضائية": satellite,
+                "داكن": dark
+            };
+
+            // Initialize Map
+            map = L.map('map', {
+                center: [24.7136, 46.6753], // Default view (Riyadh)
+                zoom: 5,
+                layers: [osm] // Default layer
+            });
+            
+            // Add Layer Control
+            L.control.layers(baseLayers, null, { position: 'topleft' }).addTo(map);
+        }
+
+        // --- Event Listeners ---
+        fileInput.addEventListener('change', handleFileSelect);
+        downloadGeoJSONBtn.addEventListener('click', downloadGeoJSON);
+        downloadXLSXBtn.addEventListener('click', downloadXLSX);
+
+        // --- Core Functions ---
+
+        async function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            resetUI();
+            showLoader(true, `جاري قراءة الملف: ${file.name}`);
+
+            try {
+                let kmlText;
+                if (file.name.toLowerCase().endsWith('.kmz')) {
+                    showLoader(true, 'يتم الآن فك ضغط ملف KMZ...');
+                    kmlText = await readKmz(file);
+                } else {
+                    kmlText = await file.text();
+                }
+                
+                showLoader(true, 'جاري تحليل بيانات KML...');
+                setTimeout(() => {
+                    processedGeoJSON = parseKmlToGeoJSON(kmlText);
+                    if (processedGeoJSON && processedGeoJSON.features.length > 0) {
+                        welcomeMessage.classList.add('hidden');
+                        dataDisplay.classList.remove('hidden');
+                        displayData(processedGeoJSON);
+                        downloadGeoJSONBtn.disabled = false;
+                        downloadXLSXBtn.disabled = false;
+                    } else {
+                        showError('لم يتم العثور على معالم جغرافية (Placemarks) قابلة للعرض في الملف.');
+                    }
+                    showLoader(false);
+                }, 50);
+
+            } catch (error) {
+                console.error("Error processing file:", error);
+                showError(`حدث خطأ أثناء معالجة الملف: ${error.message}`);
+                showLoader(false);
+            }
+        }
+
+        async function readKmz(file) {
+            const jszip = new JSZip();
+            const zip = await jszip.loadAsync(file);
+            const kmlFile = Object.keys(zip.files).find(name => name.toLowerCase().endsWith('.kml'));
+            
+            if (!kmlFile) {
+                throw new Error('لم يتم العثور على ملف KML داخل أرشيف KMZ.');
+            }
+            
+            return await zip.file(kmlFile).async('string');
+        }
+
+        function parseDescriptionHTML(htmlString) {
+            const properties = {};
+            try {
+                const doc = domParser.parseFromString(htmlString, 'text/html');
+                const table = doc.querySelector('table');
+                if (table) {
+                    const rows = table.querySelectorAll('tr');
+                    rows.forEach(row => {
+                        const cells = row.querySelectorAll('td');
+                        if (cells.length === 2) {
+                            const key = cells[0].textContent.trim().replace(/:$/, ''); // Clean key
+                            const value = cells[1].textContent.trim();
+                            if (key) {
+                                properties[key] = value;
+                            }
+                        }
+                    });
+                }
+            } catch (e) {
+                console.error("Could not parse description HTML", e);
+            }
+            return properties;
+        }
+
+        function parseKmlToGeoJSON(kmlText) {
+            const kmlDom = domParser.parseFromString(kmlText, 'text/xml');
+            
+            if (kmlDom.getElementsByTagName('parsererror').length > 0) {
+                throw new Error('فشل تحليل ملف KML. قد يكون الملف تالفًا أو غير صحيح.');
+            }
+
+            const placemarks = kmlDom.getElementsByTagName('Placemark');
+            const features = Array.from(placemarks).map(placemark => {
+                const properties = {};
+
+                const extendedData = placemark.querySelector('ExtendedData');
+                if (extendedData) {
+                    const dataElements = extendedData.querySelectorAll('Data');
+                    dataElements.forEach(data => {
+                        const name = data.getAttribute('name');
+                        const value = data.querySelector('value')?.textContent.trim() || '';
+                        if (name) {
+                            properties[name] = value;
+                        }
+                    });
+                }
+
+                const nameEl = placemark.querySelector('name');
+                if (nameEl && !properties.hasOwnProperty('name')) {
+                    properties['name'] = nameEl.textContent.trim();
+                }
+
+                const descriptionEl = placemark.querySelector('description');
+                if (descriptionEl) {
+                    const descriptionContent = descriptionEl.textContent;
+                    const htmlProperties = parseDescriptionHTML(descriptionContent);
+                    
+                    for (const key in htmlProperties) {
+                        if (!properties.hasOwnProperty(key)) {
+                            properties[key] = htmlProperties[key];
+                        }
+                    }
+
+                    if (Object.keys(htmlProperties).length === 0 && !properties.hasOwnProperty('description')) {
+                        properties['description'] = descriptionContent.trim();
+                    }
+                }
+
+                const geometry = parseGeometry(placemark);
+                if (!geometry) return null;
+
+                return {
+                    type: 'Feature',
+                    properties,
+                    geometry
+                };
+            }).filter(Boolean);
+
+            return {
+                type: 'FeatureCollection',
+                features
+            };
+        }
+
+        function parseGeometry(placemark) {
+            const point = placemark.querySelector('Point > coordinates');
+            if (point) {
+                const coords = point.textContent.trim().split(',').map(Number);
+                if (isNaN(coords[0]) || isNaN(coords[1])) return null;
+                return { type: 'Point', coordinates: [coords[0], coords[1]] };
+            }
+
+            const line = placemark.querySelector('LineString > coordinates');
+            if (line) {
+                const coords = line.textContent.trim().split(/\s+/).map(coordStr => coordStr.split(',').map(Number));
+                if (coords.some(c => isNaN(c[0]) || isNaN(c[1]))) return null;
+                return { type: 'LineString', coordinates: coords.map(c => [c[0], c[1]]) };
+            }
+
+            const polygon = placemark.querySelector('Polygon > outerBoundaryIs > LinearRing > coordinates');
+            if (polygon) {
+                const coords = polygon.textContent.trim().split(/\s+/).map(coordStr => coordStr.split(',').map(Number));
+                if (coords.some(c => isNaN(c[0]) || isNaN(c[1]))) return null;
+                return { type: 'Polygon', coordinates: [coords.map(c => [c[0], c[1]])] };
+            }
+
+            return null;
+        }
+
+        function displayData(geojson) {
+            displayTable(geojson.features);
+            displayMap(geojson);
+        }
+
+        function displayTable(features) {
+            tableHead.innerHTML = '';
+            tableBody.innerHTML = '';
+
+            if (features.length === 0) return;
+
+            const headers = new Set();
+            features.forEach(feature => {
+                Object.keys(feature.properties).forEach(key => headers.add(key));
+            });
+            const headerList = Array.from(headers);
+
+            const headerRow = document.createElement('tr');
+            headerList.forEach(headerText => {
+                const th = document.createElement('th');
+                th.scope = 'col';
+                th.className = 'px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider';
+                th.textContent = headerText;
+                headerRow.appendChild(th);
+            });
+            tableHead.appendChild(headerRow);
+
+            features.forEach(feature => {
+                const row = document.createElement('tr');
+                headerList.forEach(header => {
+                    const td = document.createElement('td');
+                    td.className = 'px-6 py-4 whitespace-nowrap text-sm text-gray-700';
+                    td.textContent = feature.properties[header] || '';
+                    row.appendChild(td);
+                });
+                tableBody.appendChild(row);
+            });
+        }
+
+        function displayMap(geojson) {
+            if (geoJSONLayer) {
+                map.removeLayer(geoJSONLayer);
+            }
+
+            geoJSONLayer = L.geoJSON(geojson, {
+                onEachFeature: (feature, layer) => {
+                    let popupContent = '<div class="overflow-auto max-h-48"><table class="w-full"><tbody>';
+                    for (const key in feature.properties) {
+                        popupContent += `<tr><th class="font-bold pr-2 align-top">${key}</th><td>${feature.properties[key]}</td></tr>`;
+                    }
+                    popupContent += '</tbody></table></div>';
+                    layer.bindPopup(popupContent);
+                },
+                style: (feature) => ({ color: "#3388ff", weight: 3, opacity: 0.8 }),
+                pointToLayer: (feature, latlng) => L.circleMarker(latlng, {
+                    radius: 6,
+                    fillColor: "#ff7800",
+                    color: "#000",
+                    weight: 1,
+                    opacity: 1,
+                    fillOpacity: 0.8
+                })
+            }).addTo(map);
+
+            if (geojson.features.length > 0) {
+                setTimeout(() => {
+                    map.invalidateSize();
+                    map.fitBounds(geoJSONLayer.getBounds());
+                }, 100); 
+            }
+        }
+
+        /**
+         * Triggers the download of the processed GeoJSON data.
+         */
+        function downloadGeoJSON() {
+            if (!processedGeoJSON) {
+                console.error('لا توجد بيانات للتحويل. يرجى رفع ملف أولاً.');
+                return;
+            }
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(processedGeoJSON, null, 2));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", "converted_data.geojson");
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        }
+
+        /**
+         * Triggers the download of the processed data as an XLSX file.
+         */
+        function downloadXLSX() {
+            if (!processedGeoJSON || !processedGeoJSON.features || processedGeoJSON.features.length === 0) {
+                console.error('لا توجد بيانات للتحويل. يرجى رفع ملف أولاً.');
+                return;
+            }
+
+            // Extract properties from each feature into a flat array of objects
+            const dataForSheet = processedGeoJSON.features.map(feature => feature.properties);
+
+            // Create a new worksheet from the JSON data
+            const worksheet = XLSX.utils.json_to_sheet(dataForSheet);
+
+            // Create a new workbook
+            const workbook = XLSX.utils.book_new();
+
+            // Append the worksheet to the workbook
+            XLSX.utils.book_append_sheet(workbook, worksheet, "بيانات KML"); // Sheet name
+
+            // Trigger the download of the XLSX file
+            XLSX.writeFile(workbook, "converted_data.xlsx");
+        }
+
+
+        // --- UI Helper Functions ---
+        
+        function resetUI() {
+            downloadGeoJSONBtn.disabled = true;
+            downloadXLSXBtn.disabled = true;
+            dataDisplay.classList.add('hidden');
+            welcomeMessage.classList.remove('hidden');
+            tableHead.innerHTML = '';
+            tableBody.innerHTML = '';
+            if (geoJSONLayer) map.removeLayer(geoJSONLayer);
+            processedGeoJSON = null;
+        }
+
+        function showLoader(show, message = '') {
+            statusContainer.classList.toggle('hidden', !show);
+            if(show) {
+                statusMessage.textContent = message;
+                welcomeMessage.classList.add('hidden');
+                dataDisplay.classList.add('hidden');
+            }
+        }
+
+        function showError(message) {
+            welcomeMessage.classList.remove('hidden');
+            welcomeMessage.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-16 w-16 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <h3 class="mt-4 text-xl font-semibold text-red-700">حدث خطأ</h3>
+                <p class="mt-2 text-gray-600">${message}</p>
+                <p class="mt-2 text-sm text-gray-500">يرجى المحاولة مرة أخرى بملف مختلف.</p>
+            `;
+        }
+
+        // --- Initial call to setup the map ---
+        initializeMap();
+    </script>
+</body>
+</html>
